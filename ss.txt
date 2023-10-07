@@ -1,0 +1,590 @@
+const Community = require("../models/community");
+const Profile = require("../models/profile");
+const User = require("../models/user");
+const CommunityRequest = require("../models/communityRequest");
+
+//@desc      create a community
+//@route     Post /community/create
+//@access    Private
+exports.createCommunity = async (req, res) => {
+  let { name, description, _members } = req.body[0];
+  
+  try {
+    const creator = await User.findById(req.body[0].userId);
+    const communityExists = await Community.find({ name });
+    if (communityExists.length > 0) {
+      return res.json({
+        status: "FAILURE",
+        message: `A community with this name already exists`,
+      });
+    }
+    var members = [];
+    
+    _members.forEach(element => {
+      var objt = ({
+      profileId: element.profileId,
+      role: element.role})
+      members.push(objt)
+    });
+    members.push({
+      profileId: creator.profileId,
+      role: "CREATOR",
+    });
+    
+    const requests = [];
+    const community = new Community({ name, description, members, requests });
+    community
+      .save()
+      .then(async (community) => {
+        community.members.map(async (member) => {
+          updatedProfile = await Profile.findByIdAndUpdate(
+            member.profileId,
+            {
+              $push: {
+                communities: { communityId: community._id, role: member.role },
+              },
+            },
+            { safe: true, upsert: true, new: true }
+          );
+        });
+      })
+      .catch((err) => {
+        return res.json({
+          status: "FAILURE",
+          message: "An error occured while creating your community",
+          error: err.message,
+        });
+      });
+
+    const community_created = await Profile.findById(creator.profileId);
+    
+    const communities = community_created.communities;
+    const commIdArry = communities.filter(obj => {
+      if(obj.role === "CREATOR"){
+        return obj.communityId;
+      }
+    })
+    .map(function(obj) {
+      return obj.communityId;
+    });
+    var queryObject = {
+      _id: {
+          $in: commIdArry
+      }
+    };
+    var allCommunities = await Community.find(queryObject);
+    allCommunities.push(community);
+    return res.json({
+      status: "SUCCESS",
+      message: "Community Created Successfully",
+      community: allCommunities,
+    });
+    
+  } catch {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Show all users of a community
+//@route     Get /community/:communityId
+//@access    Private
+
+exports.getMembers = async (req, res) => {
+  try {
+    const community = await Community.findById(req.body.communityId);
+
+    return res.json({
+      status: "SUCCESS",
+      data: community?.members,
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Add Member/s to a community
+//@route     Patch /community/addmembers/:communityId
+//@access    Private
+
+exports.addMembers = async (req, res) => {
+  try {
+    const members = req.body.members;
+    var checkCommunity = await Community.findById(req.params.communityId);
+  if(checkCommunity.requests.length === 0){
+    
+      return res.json({
+        status: "SUCCESS",
+        message: "Member request has already been accepted!",
+      });
+    
+  }
+      if(checkCommunity.requests.length > 0){
+        var d = checkCommunity.requests.find(x=>x.profileId === members[0].profileId);
+        if(!(checkCommunity.requests.find(x=>x.profileId === members[0].profileId))){
+          return res.json({
+            status: "SUCCESS",
+            message: "Member request has already been accepted!",
+          });
+        }
+        else{
+          var community;
+         var profile;
+         var loggedInProfileId = req.params.loggedInProfileId;
+    members.map(async (member) => {
+
+      community = await Community.findByIdAndUpdate(
+        req.params.communityId,
+        { $push: { members: member } },
+        { safe: true, upsert: true, new: true }
+      );
+      const updatedMember = await Profile.findByIdAndUpdate(
+        member.profileId,
+        {
+          $push: {
+            communities: { communityId: community._id, role: member.role },
+          },
+        },
+        { safe: true, upsert: true, new: true }
+      );
+      {
+        community = req.params.communityId;
+         profile = member.profileId;
+        loggedInProfileId = req.params.loggedInProfileId;
+    const updatedProfile = await Community.findByIdAndUpdate(
+      community,
+      { $pull: { requests: { profileId: profile } } },
+      { new: true }
+    );
+      }
+    });
+  
+    const community_ = req.params.communityId;
+
+    const community_created = await Profile.findById(loggedInProfileId);
+      const communities = community_created.communities;
+      const commIdArry = communities.filter(obj => {
+        if(obj.role === "CREATOR"){
+          return obj.communityId;
+        }
+      })
+      .map(function(obj) {
+        return obj.communityId;
+      });
+      var queryObject = {
+        _id: {
+            $in: commIdArry
+        }
+      };
+      const allCommunities = await Community.find(queryObject);
+    var filteredSet = [];
+    allCommunities.forEach(element => {
+      if(element._id.toString() === community_){
+        element.requests = element.requests.filter(item => item.profileId != profile)
+      }
+      filteredSet.push(element);
+      
+    })
+    return res.json({
+      status: "SUCCESS",
+      community : filteredSet,
+      message: "Members added successfully",
+    });
+  }
+}
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      remove Member/s to a community
+//@route     Patch /community/removemembers/:communityId
+//@access    Private
+
+exports.removeMembers = async (req, res) => {
+  try {
+    const members = req.body.members;
+    let community;
+    members.map(async (member) => {
+      community = await Community.findByIdAndUpdate(
+        req.body.communityId,
+        { $pull: { members: { profileId: member.profileId } } },
+        { new: true }
+      );
+      const updatedMember = await Profile.findByIdAndUpdate(
+        member.profileId,
+        { $pull: { communities: { communityId: req.body.communityId } } },
+        { new: true }
+      );
+    });
+    return res.json({
+      status: "SUCCESS",
+      message: "Members removed successfully",
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      delete a community
+//@route     Patch /community/deletecommunity/:communityId
+//@access    Private
+
+exports.deleteCommunity = async (req, res) => {
+  try {
+    const communityId = req.body.communityId;
+    const community = await Community.findById(communityId);
+
+    const members = community.members;
+
+    members.map(async (member) => {
+      const updatedMember = await Profile.findByIdAndUpdate(
+        member.profileId,
+        { $pull: { communities: { communityId: req.body.communityId } } },
+        { new: true }
+      );
+    });
+
+    await Community.findByIdAndDelete(req.body.communityId);
+
+    return res.json({
+      status: "SUCCESS",
+      message: "Community deleted successfully",
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Show all communities of a specific user where he is either a creator or a member
+//@route     Get /community/:profileId
+//@access    Private
+
+exports.showMyCommunities = async (req, res) => {
+  try {
+    const community = await Profile.findById(req.body.profileId);
+    const communities = community.communities;
+    const commIdArry = communities.map(a=>a.communityId);
+    var queryObject = {
+      _id: {
+          $in: commIdArry
+      }
+    };
+    const allCommunities = await Community.find(queryObject);
+
+    return res.json({
+      status: "SUCCESS",
+      data: allCommunities,
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Show all communities of a specific user where he is a creator only
+//@route     Get /community/:profileId
+//@access    Private
+
+exports.showMyCreatorCommunities = async (req, res) => {
+  try {
+    const community = await Profile.findById(req.params.profileId);
+    
+    const communities = community.communities;
+    const commIdArry = communities.filter(obj => {
+      if(obj.role === "CREATOR"){
+        return obj.communityId;
+      }
+    })
+    .map(function(obj) {
+      return obj.communityId;
+    });
+    var queryObject = {
+      _id: {
+          $in: commIdArry
+      }
+    };
+    const allCommunities = await Community.find(queryObject);
+    return res.json({
+      status: "SUCCESS",
+      data: allCommunities,
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Show all communities of a specific user where he is a member
+//@route     Get /community/:profileId
+//@access    Private
+
+exports.showMyMemberCommunities = async (req, res) => {
+  try {
+    const community = await Profile.findById(req.params.profileId);
+    const communities = community.communities;
+    const commIdArry = communities.filter(obj => {
+      if(obj.role === "MEMBER"){
+        return obj.communityId;
+      }
+    })
+    .map(function(obj) {
+      return obj.communityId;
+    });
+
+    var queryObject = {
+      _id: {
+          $in: commIdArry
+      }
+    };
+    const allCommunities = await Community.find(queryObject);
+
+    return res.json({
+      status: "SUCCESS",
+      data: allCommunities,
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Show recommended communities of a specific user where he is neither a member nor a creator
+//@route     Get /community/showRecommendedCommunities/:profileId
+//@access    Private
+
+exports.showRecommendedCommunities = async (req, res) => {
+  try {
+    const allCommunities = await Community.find();
+    var resultData = [];
+    allCommunities.forEach(element => {
+        if(element.members.find(x => x.profileId === req.params.profileId)) {
+        }
+        else{
+          resultData.push(element);
+        }
+      
+       
+    });
+    return res.json({
+      status: "SUCCESS",
+      data: resultData,
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Add Member/s Requests to a community
+//@route     Patch /community/addmemberrequest/:communityId/:profileId
+//@access    Private
+
+exports.addMemberRequest = async (req, res) => {
+  try {
+    let { communityId, profileId} = req.params;
+    const role = "MEMBER";
+    
+    var checkCommunity = await Community.findById(req.params.communityId);
+   if(checkCommunity.requests.length > 0 || checkCommunity.requests.length === 0){
+         var d = checkCommunity.requests.find(x=>x.profileId === req.params.profileId);
+         if((checkCommunity.requests.find(x=>x.profileId === req.params.profileId))){
+           return res.json({
+             status: "SUCCESS",
+             message: "Your join request already exists!",
+           });
+         }
+        
+         else{
+    updatedProfile = await Community.findByIdAndUpdate(
+          communityId,
+          {
+            $push: {
+              requests: { profileId: profileId, role: role },
+            },
+          },
+          { safe: true, upsert: true, new: true }
+        );
+    return res.json({
+      status: "SUCCESS",
+      message: "Member request added successfully",
+    });
+  }
+}
+ } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+//@desc      Decline Member/s Requests in a community
+//@route     Patch /community/declinememberrequest/:communityId
+//@access    Private
+
+exports.declineMemberRequest = async (req, res) => {
+  try {
+    var checkCommunity = await Community.findById(req.params.communityId);
+   if(checkCommunity.requests.length === 0){
+     
+       return res.json({
+         status: "SUCCESS",
+         message: "Member request has already been declined!",
+       });
+     
+   }
+   var allCommunities;
+       if(checkCommunity.requests.length > 0){
+         var d = checkCommunity.requests.find(x=>x.profileId === req.params.profileId);
+         if(!(checkCommunity.requests.find(x=>x.profileId === req.params.profileId))){
+           return res.json({
+             status: "SUCCESS",
+             message: "Member request has already been declined!",
+           });
+         }
+         else{
+    const community = req.params.communityId;
+    const profile = req.params.profileId;
+const loggedInProfileId = req.params.loggedInProfileId;
+    const updatedProfile = await Community.findByIdAndUpdate(
+      community,
+      { $pull: { requests: { profileId: profile } } },
+      { new: true }
+    )
+      const community_created = await Profile.findById(loggedInProfileId);
+    
+      const communities = community_created.communities;
+      const commIdArry = communities.filter(obj => {
+        if(obj.role === "CREATOR"){
+          return obj.communityId;
+        }
+      })
+      .map(function(obj) {
+        return obj.communityId;
+      });
+      var queryObject = {
+        _id: {
+            $in: commIdArry
+        }
+      };
+      allCommunities = await Community.find(queryObject);
+    var filteredSet = [];
+    allCommunities.forEach(element => {
+      if(element._id.toString() === community){
+        element.requests = element.requests.filter(item => item.profileId != profile)
+      }
+      filteredSet.push(element);
+      
+    })
+    return res.json({
+      status: "SUCCESS",
+      community: filteredSet,
+      message: "Member request declined successfully",
+    });
+  }
+}
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+//@desc      Show all members requests in a particular community
+//@route     Get /community/getmembersrequests/:communityId
+//@access    Private
+
+exports.getMembersRequests = async (req, res) => {
+  try {
+    const community = req.body.communityId;
+    const communityData = await CommunityRequest.find({community});
+
+    return res.json({
+      status: "SUCCESS",
+      data: communityData
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+
+//@desc      Show all members requests in all communities
+//@route     Get /community/getallmembersrequests/
+//@access    Private
+
+exports.getAllMembersRequests = async (req, res) => {
+  try {
+    const communityData = await CommunityRequest.find();
+
+    return res.json({
+      status: "SUCCESS",
+      data: communityData
+    });
+  } catch (error) {
+    return res.json({
+      status: "FAILURE",
+      message: `There is some error while processing your request`,
+    });
+  }
+};
+---------------------------------------------------
+const express = require("express");
+const router = express.Router();
+const {
+  createCommunity,
+  getMembers,
+  addMembers,
+  removeMembers,
+  deleteCommunity,
+  showMyCommunities,
+  showMyCreatorCommunities,
+  showMyMemberCommunities,
+  addMemberRequest,
+  getMembersRequests,
+  getAllMembersRequests,
+  declineMemberRequest,
+  showRecommendedCommunities,
+} = require("../controllers/community");
+const verifyToken = require("../middleware/auth");
+
+router.route("/create/").post(createCommunity);
+router.route("/getmembers/:communityId").get(getMembers);
+router.route("/addmembers/:communityId/:loggedInProfileId").patch(addMembers);
+router.route("/removemembers/:communityId").patch(removeMembers);
+router.route("/deletecommunity/:communityId").delete(deleteCommunity);
+router.route("/showmycommunities/:profileId").get(showMyCommunities);
+router.route("/showmycreatorcommunities/:profileId").get(showMyCreatorCommunities);
+router.route("/showmymembercommunities/:profileId").get(showMyMemberCommunities);
+router.route("/showrecommendedcommunities/:profileId").get(showRecommendedCommunities);
+router.route("/addmemberrequest/:communityId/:profileId").post(addMemberRequest);
+router.route("/getmembersrequests/:communityId").get(getMembersRequests);
+router.route("/getallmembersrequests/").get(getAllMembersRequests);
+router.route("/declinememberrequest/:communityId/:profileId/:loggedInProfileId").patch(declineMemberRequest);
+
+
+module.exports = router;

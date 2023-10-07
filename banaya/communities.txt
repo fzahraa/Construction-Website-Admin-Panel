@@ -1,0 +1,319 @@
+import React from "react";
+import { useState, useEffect} from "react";
+import styled from "styled-components";
+import { CommunityLayout } from "../../../Shared/CommunityLayout";
+import { addMemberRequests, declineMemberRequests, addMembers } from '../../../features_en/community/communitySlice';
+import { useDispatch, useSelector } from "react-redux";
+import { getUserFromLocalStorage } from '../../../utils/localStorage';
+import { toast } from "react-toastify";
+
+const Communities = (props) => {
+  const dispatch = useDispatch();
+  const { communities, joinedCommunities, recommendedCommunities } = useSelector(
+    (state) => state.community
+  );
+  // User has switched back to the tab
+
+
+// User has switched away from the tab (AKA tab is hidden)
+const onBlur = () => {
+  console.log("Tab is blurred");
+};
+  useEffect(() => {
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    // Calls onFocus when the window first loads
+    onFocus();
+    // Specify how to clean up after this effect:
+    return () => {
+        window.removeEventListener("focus", onFocus);
+        window.removeEventListener("blur", onBlur);
+    };
+});
+  const { allUsers } = useSelector(
+    (state) => state.userEn
+  );
+  const user = getUserFromLocalStorage();
+  const ar = allUsers.filter(item => (item.user === user.userId));
+
+  const onFocus = () => {
+  //console.log(communities);
+}
+  var communityArray = []
+  var joinedCommunity = [];
+  var recommendedCommunity = [];
+ if(communities.length > 0){
+ communities.forEach(element => {
+  var data = {
+    Name: element.name,
+    Request: "Member Requests (" + element.requests.length + ")",
+    ViewAll: "View Requests",
+  }
+  communityArray.push(data);
+ });
+}
+ joinedCommunities.forEach(element => {
+  var data = {
+    Name: element.name,
+    Request: "New Posts(3)",
+  }
+  joinedCommunity.push(data);
+ });
+ 
+ recommendedCommunities.forEach(element => {
+  var data = {
+    Name: element.name,
+    Request: element.members.length + " Members",
+    Join: "Join",
+  }
+  recommendedCommunity.push(data);
+ });
+ 
+ const hideModal = () => {
+  setMembersTab(false);
+};
+
+ const openTab= (s) => {
+  setMembersTab(true);
+  var commId;
+  var allRequests = [];
+  communities.forEach(element => {
+    if(element.name === s.Name){
+      commId = element._id;
+      element.requests.forEach(req => {
+        allRequests.push(req);
+      });      
+    }
+  });
+ var res = props.communitiesData.filter(f => allRequests.some(item => item.profileId === f.id));
+
+ setMembersData(res);
+ setRequestedCommunityId(commId)
+}
+
+
+const acceptRequest = (s) => {
+  console.log(s);
+
+  // dispatch(
+  //   addMembers({
+  //     communityId : communityId,
+  //     members:[
+  //       {
+  //         profileId: s.id,
+  //         role: "MEMBER"
+  //       }
+  //     ]
+  //   })
+  // )
+}
+
+const declineRequest = (s) => {
+//     dispatch(
+//       declineMemberRequests({
+//         communityId : communityId,
+//         profileId : s.id
+//       })
+    
+//  );
+   
+}
+
+
+const joinCommunity = (s) => {
+  var commId;
+  recommendedCommunities.forEach(element => {
+    if(element.name === s.Name){
+      commId = element._id;
+    }
+  });
+    if(ar.length>0){
+      var d= recommendedCommunities.find(x=>x.requests.find(y=>y.profileId === ar[0]._id && x._id === commId));
+      console.log(d);
+  if(recommendedCommunities.find(x=>x.requests.find(y=>y.profileId === ar[0]._id && x._id === commId))){
+    toast.success("Your join request already exists!")
+  }
+  else{
+    dispatch(
+      addMemberRequests({
+          communityId: commId,
+          profileId: ar[0]._id,
+      })
+    
+  );
+  toast.success("Request Added Successfully!")
+    }
+  }
+
+}
+  const [mappedArray, setMappedArray] = useState(communityArray);
+  const [openMembersTab, setMembersTab] = useState(false);
+  const [membersData, setMembersData] = useState();
+  const [communityId, setRequestedCommunityId] = useState();
+  // const [color, setColor] = useState(null);
+  return (
+    <>
+    <CommunityLayout>
+      <div className="community__card">
+        <Wrapper>
+          <main>
+            <h1
+              onClick={() => {
+                setMappedArray(communityArray);
+              }}
+            >
+              My Communities
+            </h1>
+            <h1
+              className=""
+              onClick={() => {
+                setMappedArray(joinedCommunity);
+              }}
+            >
+              Joined Communities
+            </h1>
+            <h1
+              className=""
+              onClick={() => {
+                setMappedArray(recommendedCommunity);
+              }}
+            >
+              Recommended
+            </h1>
+          </main>
+          {mappedArray.map((s) => (
+            <div className="community__tab" key={s.Name}>
+              <p>{s.Name}</p>
+              <p>{s.Request}</p>
+              {s.Join && (
+                <button className="blue-btn join-btn" onClick={() => joinCommunity(s)}>{s.Join}</button>
+              )}
+              {s.ViewAll && (
+                <button className="blue-btn join-btn" onClick={() => openTab(s)} >{s.ViewAll}</button>
+              )}
+            </div>
+          ))}
+        </Wrapper>
+      </div>
+    </CommunityLayout>
+    <div>
+    {openMembersTab &&
+      <Modal details={membersData} handleClose={hideModal} accept = {acceptRequest} decline = {declineRequest} />
+    }
+    </div>
+   </>
+  );
+};
+
+
+const Modal = ({ handleClose, details, accept, decline }) => {
+  return (
+    <Wrapper>
+    <div className="modal display-block">
+      <section className="modal-main">
+         <div className="community__card">
+        
+          
+          {details.map((s) => (
+            <div className="community__tab" key={s.Name}>
+              <p>{s.name}</p>
+              <p>{s.service_en.role}</p>
+              <div>
+                <button className="blue-btn join-btn" onClick={() => accept(s)}>Accept</button>
+                <button className="blue-btn join-btn" onClick={() => decline(s)}>Decline</button>
+              </div>            
+            </div>
+          ))}
+          <button className="blue-btn accept-btn" onClick={handleClose}>Close</button>
+      </div>
+        </section>
+      </div>
+      </Wrapper>
+  );
+};
+
+export default Communities;
+
+const Wrapper = styled.div`
+  color: white;
+  margin: 0rem 1rem;
+  main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4rem;
+    @media only screen and (max-width: 850px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+  main > h1 {
+    cursor: pointer;
+  }
+  .community__tab {
+    background-color: white;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    justify-items: left;
+    color: "#424d83";
+    grid-gap: 6rem;
+    margin: 0.7rem 0rem;
+    border-radius: 5px;
+    padding: 1.4rem 1.4rem;
+    @media only screen and (max-width: 850px) {
+      grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
+      grid-gap: 0rem;
+      justify-items: center;
+    }
+  }
+  .community__tab > p {
+    color: var(--clr-blue-2);
+    font-size: 1.6rem;
+    font-weight: 500;
+  }
+  .join-btn {
+    padding: 0.7rem 2.4rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-top: 0rem;
+    @media only screen and (max-width: 850px) {
+      margin-top: 1.7rem;
+    }
+  }
+  .accept-btn {
+    padding: 0.7rem 2.4rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-top: 10px;
+    margin-left: 45%;
+    margin-bottom: 10px;
+    @media only screen and (max-width: 850px) {
+      margin-top: 1.7rem;
+    }
+  }
+  .modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.modal-main {
+  position: fixed;
+  background: white;
+  width: 80%;
+  height: auto;
+  top: 50%;
+  left: 50%;
+  border-radius: 10px;
+  transform: translate(-50%, -50%);
+}
+
+.display-block {
+  display: block !important;
+}
+
+`;

@@ -1,0 +1,3 @@
+1. We assume that when a referred user signs up in our website then the person who referred him will get 10 credits. But we need to know about who we can refer to? For example, can an expert refer the other person only for expert role or an expert can refer other user for a client role as well? 
+2. It makes sense if we give credits on referred user. But what about idea book and on projects. For example, I'm a user and I already have starter package. Now with starter package, I have a limit for uploading projects and idea books, how can we give credits on the basis of it?
+3. I believe, we can give credits on the basis of particular number of projects done by a user with 5 rating/stars. 

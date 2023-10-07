@@ -1,0 +1,46 @@
+Backend
+
+Controller
+admin.js
+
+following methods are added
+updateSubsProfile
+searchSubscriptionPendingUsers
+
+
+profile.js
+following methods are added
+updateSubscriptionDetailsEn
+
+subscription.js
+
+Backend 
+Models
+
+profile.js
+subscriptions.js
+
+routes
+
+admin.js
+profile.js
+subscription.js
+
+Frontend
+
+features_en
+profile->profileSlice
+profile->profileThunk
+
+subscriptionPackage
+both files
+
+
+pages_en
+
+Community->profile
+ProfileDriver.js
+subscription.js
+subscriptionVerification.js
+
+Src->utils->store.js

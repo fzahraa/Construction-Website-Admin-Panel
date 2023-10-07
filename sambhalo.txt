@@ -1,0 +1,129 @@
+mongodb+srv://dbUser:dbUserPassword@clustersa.tjudcdg.mongodb.net/?retryWrites=true&w=majority
+mongodb://localhost/subscriptionDB
+
+C:\Program Files\MongoDB\Server\6.0\data\
+
+
+http://localhost:8000/api/subscription/getAllSubscriptionsEn
+
+http://localhost:8000/api/subscription/createSubscriptionEn
+
+http://localhost:8000/api/community/create/
+
+Request
+{
+    "name" : "Constructors Community", 
+    "description" : "This community is for Constructors so that they can share knowledge and grow more",
+    "userId" : "6351ffa102ff67c2bfac755b",
+    "members" : [
+        {
+            "profileId" : "6354dfa4e508425b032b6206",
+            "role" : "MEMBER"
+        },
+        {
+            "profileId" : "6354dfd1e508425b032b620c",
+            "role" : "MEMBER"
+        }
+    ]
+}
+Response
+{
+    "status": "SUCCESS",
+    "message": "Community Created Successfully",
+    "community": {
+        "name": "Constructors Community",
+        "description": "This community is for Constructors so that they can share knowledge and grow more",
+        "members": [
+            {
+                "profileId": "6354dfa4e508425b032b6206",
+                "role": "MEMBER",
+                "_id": "635f39422f7c858f54e49be5"
+            },
+            {
+                "profileId": "6354dfd1e508425b032b620c",
+                "role": "MEMBER",
+                "_id": "635f39422f7c858f54e49be6"
+            },
+            {
+                "profileId": "6351ffd902ff67c2bfac755f",
+                "role": "CREATOR",
+                "_id": "635f39422f7c858f54e49be7"
+            }
+        ],
+        "_id": "635f39412f7c858f54e49be4"
+    }
+}
+
+
+
+http://localhost:8000/api/community/getmembers/:communityId
+Request:
+{
+    "communityId" : "635f39412f7c858f54e49be4"
+}
+Response
+{
+    "status": "SUCCESS",
+    "data": [
+        {
+            "profileId": "6354dfa4e508425b032b6206",
+            "role": "MEMBER",
+            "_id": "635f39422f7c858f54e49be5"
+        },
+        {
+            "profileId": "6354dfd1e508425b032b620c",
+            "role": "MEMBER",
+            "_id": "635f39422f7c858f54e49be6"
+        },
+        {
+            "profileId": "6351ffd902ff67c2bfac755f",
+            "role": "CREATOR",
+            "_id": "635f39422f7c858f54e49be7"
+        }
+    ]
+}
+
+
+
+http://localhost:8000/api/community/addmembers/:communityId
+
+Request
+{
+    "communityId" : "635f39412f7c858f54e49be4",
+    "members" : [
+        {
+            "profileId" : "634396eeccb88dc04866cf4b",
+            "role" : "MEMBER"
+        }
+    ]
+}
+Response
+{
+    "status": "SUCCESS",
+    "message": "Members added successfully"
+}
+
+http://localhost:8000/api/community/removemembers/:communityId
+Request
+{
+    "communityId" : "635f39412f7c858f54e49be4",
+    "members" : [
+        {
+            "profileId" : "634396eeccb88dc04866cf4b"
+        }
+    ]
+}
+Response
+{
+    "status": "SUCCESS",
+    "message": "Members removed successfully"
+}
+
+
+Delete Community (Only Creator can delete community) Delete community button will show only to the creator, not to the members
+Remove Members (Only a member can remove himself, creator can remove himself as well as members)
+if the creator deletes himself, the creator will have to volunteer someone to be a creator from now on
+multiple admins, atleast three admins and one creator
+admin can delete members, members can delete themselves only. Only creator can delete admin.
+Add Member(Only creator can approve add members requests)
+Get My Communities
